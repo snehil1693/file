@@ -1,18 +1,39 @@
 <?xml version="1.0" encoding="UTF-8"?>
 
-<mule xmlns:file="http://www.mulesoft.org/schema/mule/file" xmlns="http://www.mulesoft.org/schema/mule/core"
-	xmlns:doc="http://www.mulesoft.org/schema/mule/documentation"
-	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
-http://www.mulesoft.org/schema/mule/file http://www.mulesoft.org/schema/mule/file/current/mule-file.xsd">
+<mule xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core" xmlns:http="http://www.mulesoft.org/schema/mule/http"
+	xmlns:file="http://www.mulesoft.org/schema/mule/file"
+	xmlns="http://www.mulesoft.org/schema/mule/core" xmlns:doc="http://www.mulesoft.org/schema/mule/documentation" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+http://www.mulesoft.org/schema/mule/file http://www.mulesoft.org/schema/mule/file/current/mule-file.xsd
+http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd
+http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd">
 	<file:config name="File_Config" doc:name="File Config" doc:id="5ba758ab-5302-420d-881a-39913d12fb85" >
 		<file:connection workingDir="D:\Mule" />
 	</file:config>
+	<http:listener-config name="HTTP_Listener_config" doc:name="HTTP Listener config" doc:id="9428bc93-4cb8-4b73-84aa-5be261225903" >
+		<http:listener-connection host="0.0.0.0" port="8082" />
+	</http:listener-config>
 	<flow name="04-fileFlow" doc:id="d3f89b79-39ad-4a91-91f9-f1cbeffed156" >
-		<file:listener doc:name="On New or Updated File" doc:id="5d18c0d5-4970-4cfe-bda1-ba7c2426a721" config-ref="File_Config" directory="Input" moveToDirectory="output" renameTo="#[attributes.fileName ++ '.backup']">
+		<file:listener doc:name="On New or Updated File" doc:id="5d18c0d5-4970-4cfe-bda1-ba7c2426a721" config-ref="File_Config" directory="Input" watermarkMode="MODIFIED_TIMESTAMP">
 			<scheduling-strategy >
 				<fixed-frequency />
 			</scheduling-strategy>
 		</file:listener>
 		<logger level="INFO" doc:name="Logger" doc:id="51b53286-e811-4ea3-835f-e4a073605edd" message="#[payload]"/>
+	</flow>
+	<flow name="04-fileFlow1" doc:id="96592bf3-3ab1-474a-84cd-bd4dec9d424f" >
+		<http:listener doc:name="Listener" doc:id="2e573647-a032-4d67-bd41-6e570907d166" config-ref="HTTP_Listener_config" path="/write"/>
+		<ee:transform doc:name="Transform Message" doc:id="687cfabe-02af-49d1-b7f5-4b23615af921" >
+			<ee:message >
+				<ee:set-payload ><![CDATA[%dw 2.0
+output application/csv
+---
+[{
+	p_name: attributes.queryParams.productname as String,
+	p_price: attributes.queryParams.productprice as String,
+	p_id: attributes.queryParams.productid as String
+}]]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+		<file:write doc:name="Write" doc:id="43fb0a15-e337-44ef-adce-f480797a43ed" config-ref="File_Config" path="newoutput\products.csv" mode="CREATE_NEW"/>
 	</flow>
 </mule>
